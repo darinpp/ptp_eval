@@ -13,6 +13,8 @@ package main
 import (
 	"fmt"
 	"time"
+	"syscall"
+	"unsafe"
 )
 
 func main() {
@@ -22,4 +24,24 @@ func main() {
 		_ = time.Now()
 	}
 	fmt.Printf("Time per now() call %v\n", time.Now().Sub(start)/count)
+
+        start = time.Now()
+        for i := 0; i < count; i++ {
+                _ = gettime(0)
+        }
+        fmt.Printf("Time per gettime(CLOCK_REALTIME) call %v\n", time.Now().Sub(start)/count)
+
+	start = time.Now()
+	for i := 0; i < count; i++ {
+		_ = gettime(1)
+	}
+	fmt.Printf("Time per gettime(CLOCK_MONOTONIC) call %v\n", time.Now().Sub(start)/count)
+
+	
+}
+
+func gettime(clock_id int) uint64 {
+	var ts syscall.Timespec
+	syscall.Syscall(syscall.SYS_CLOCK_GETTIME, 1, uintptr(unsafe.Pointer(&ts)), 0)
+	return uint64(ts.Nano())
 }
