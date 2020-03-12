@@ -29,7 +29,7 @@ func main() {
 	ptp_dev, err := os.Open("/dev/ptp0")
 	if err == nil {
 		ptp_fd := ptp_dev.Fd()
-		fmt.Printf("Opened /dev/ptp0 with fd %d", ptp_fd)
+		fmt.Printf("Opened /dev/ptp0 with fd %d\n", ptp_fd)
 
 		start = time.Now()
 		for i := 0; i < count; i++ {
@@ -37,7 +37,7 @@ func main() {
 		}
 		fmt.Printf("Time per gettime(/dev/ptp0) call %v\n", time.Now().Sub(start)/count)
 	} else {
-		fmt.Printf("Can't open /dev/ptp0: %+v", err)
+		fmt.Printf("Can't open /dev/ptp0: %+v\n", err)
 	}
 
 
