@@ -33,10 +33,11 @@ func main() {
 	}
 	end := time.Now()
 	fmt.Printf("Time per now() call %v\n", end.Sub(start)/count)
-	
+
 	ptp_dev, err := os.Open("/dev/ptp0")
 	if err == nil {
 		ptp_fd := ptp_dev.Fd()
+		ptp_fd = (^ptp_fd << 3) | 3
 		fmt.Printf("Opened /dev/ptp0 with fd %d\n", ptp_fd)
 		TryGetTimeCGO(C.CLOCK_REALTIME, "C.clock_gettime(/dev/ptp0)")
 		TryGetTimeSyscall(ptp_fd, "gettime(/dev/ptp0)")
