@@ -10,6 +10,13 @@
 
 package main
 
+/*
+#include <time.h>
+#include <unistd.h>
+extern int clock_gettime(clockid_t clock_id, struct timespec *tp);
+*/
+import "C"
+
 import (
 	"fmt"
 	"os"
@@ -20,11 +27,21 @@ import (
 
 func main() {
 	const count = 5_000_000
+
 	start := time.Now()
 	for i := 0; i < count; i++ {
 		_ = time.Now()
 	}
-	fmt.Printf("Time per now() call %v\n", time.Now().Sub(start)/count)
+	end := time.Now()
+	fmt.Printf("Time per now() call %v\n", end.Sub(start)/count)
+
+	start = time.Now()
+	var ts C.struct_timespec
+	for i := 0; i < count; i++ {
+		_ = C.clock_gettime(C.CLOCK_MONOTONIC, &ts)
+	}
+	end = time.Now()
+	fmt.Printf("Time per C.clock_gettime() call %v\n", end.Sub(start)/count)
 
 	ptp_dev, err := os.Open("/dev/ptp0")
 	if err == nil {
@@ -49,7 +66,7 @@ func main() {
 	for i := 0; i < count; i++ {
 		_ = gettime(0)
 	}
-	end := time.Now()
+	end = time.Now()
 	endNSec := gettime(0)
 	fmt.Printf("Time per gettime(CLOCK_REALTIME) call %v, nsec diff: %v\n", end.Sub(start)/count, (endNSec-startNSec)/count)
 
@@ -67,6 +84,6 @@ func main() {
 
 func gettime(clock_id uintptr) uint64 {
 	var ts syscall.Timespec
-	syscall.Syscall(syscall.SYS_CLOCK_GETTIME, 1, uintptr(unsafe.Pointer(&ts)), 0)
+	syscall.Syscall(228, 1, uintptr(unsafe.Pointer(&ts)), 0)
 	return uint64(ts.Nano())
 }
