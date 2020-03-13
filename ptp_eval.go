@@ -37,10 +37,10 @@ func main() {
 	ptp_dev, err := os.Open("/dev/ptp0")
 	if err == nil {
 		ptp_fd := ptp_dev.Fd()
-		ptp_fd = (^ptp_fd << 3) | 3
-		fmt.Printf("Opened /dev/ptp0 with fd %d\n", ptp_fd)
-		TryGetTimeCGO(C.CLOCK_REALTIME, "C.clock_gettime(/dev/ptp0)")
-		TryGetTimeSyscall(ptp_fd, "gettime(/dev/ptp0)")
+		ptp_mod_fd := (^ptp_fd << 3) | 3
+		fmt.Printf("Opened /dev/ptp0 with fd %x, mod_fd %x \n", ptp_fd, ptp_mod_fd)
+		TryGetTimeCGO(ptp_mod_fd, "C.clock_gettime(/dev/ptp0)")
+		TryGetTimeSyscall(ptp_mod_fd, "gettime(/dev/ptp0)")
 	} else {
 		fmt.Printf("Can't open /dev/ptp0: %+v\n", err)
 	}
@@ -61,7 +61,7 @@ func TryGetTimeCGO(clockId uintptr, text string) {
 	}
 	end := time.Now()
 	endNSec := uint64(ts.tv_sec)*1e9 + uint64(ts.tv_nsec)
-	fmt.Printf("CGO C.clock_gettime() call %v, nsec diff: %v\n", end.Sub(start)/count, (endNSec-startNSec)/count)
+	fmt.Printf("CGO %s call %v, nsec diff: %v\n", text, end.Sub(start)/count, (endNSec-startNSec)/count)
 
 }
 func TryGetTimeSyscall(clockId uintptr, text string) {
