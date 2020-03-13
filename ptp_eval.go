@@ -37,11 +37,14 @@ func main() {
 
 	start = time.Now()
 	var ts C.struct_timespec
+	_ = C.clock_gettime(C.CLOCK_MONOTONIC, &ts)
+	startNSec := uint64(ts.tv_sec)*1e9 + uint64(ts.tv_nsec)
 	for i := 0; i < count; i++ {
 		_ = C.clock_gettime(C.CLOCK_MONOTONIC, &ts)
 	}
 	end = time.Now()
-	fmt.Printf("Time per C.clock_gettime() call %v\n", end.Sub(start)/count)
+	endNSec := uint64(ts.tv_sec)*1e9 + uint64(ts.tv_nsec)
+	fmt.Printf("Time per C.clock_gettime() call %v, nsec diff: %v\n", end.Sub(start)/count, (endNSec-startNSec)/count)
 
 	ptp_dev, err := os.Open("/dev/ptp0")
 	if err == nil {
@@ -62,12 +65,12 @@ func main() {
 
 
 	start = time.Now()
-	startNSec := gettime(0)
+	startNSec = gettime(0)
 	for i := 0; i < count; i++ {
 		_ = gettime(0)
 	}
 	end = time.Now()
-	endNSec := gettime(0)
+	endNSec = gettime(0)
 	fmt.Printf("Time per gettime(CLOCK_REALTIME) call %v, nsec diff: %v\n", end.Sub(start)/count, (endNSec-startNSec)/count)
 
 	start = time.Now()
