@@ -26,6 +26,12 @@ import (
 )
 const count = 5_000_000
 
+//go:linkname walltime runtime.walltime
+func walltime() (sec int64, nsec int32)
+
+//go:linkname nanotime runtime.nanotime
+func nanotime() uint64
+
 func main() {
 	start := time.Now()
 	for i := 0; i < count; i++ {
@@ -33,6 +39,24 @@ func main() {
 	}
 	end := time.Now()
 	fmt.Printf("Time per now() call %v\n", end.Sub(start)/count)
+
+	start = time.Now()
+	sec, nsec := walltime()
+	startNSec := uint64(sec)*1e9 + uint64(nsec)
+	for i := 0; i < count; i++ {
+		sec, nsec = walltime()
+	}
+	end = time.Now()
+	endNSec := uint64(sec)*1e9 + uint64(nsec)
+	fmt.Printf("Time per walltime() call %v, nsec diff: %v\n", end.Sub(start)/count, (endNSec-startNSec)/count)
+
+	start = time.Now()
+	startNSec = nanotime()
+	for i := 0; i < count; i++ {
+		endNSec = nanotime()
+	}
+	end = time.Now()
+	fmt.Printf("Time per nanotime() call %v, nsec diff: %v\n", end.Sub(start)/count, (endNSec-startNSec)/count)
 
 	ptp_dev, err := os.Open("/dev/ptp0")
 	if err == nil {
