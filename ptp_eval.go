@@ -24,65 +24,55 @@ import (
 	"syscall"
 	"unsafe"
 )
+const count = 5_000_000
 
 func main() {
-	const count = 5_000_000
-
 	start := time.Now()
 	for i := 0; i < count; i++ {
 		_ = time.Now()
 	}
 	end := time.Now()
 	fmt.Printf("Time per now() call %v\n", end.Sub(start)/count)
+	
+	ptp_dev, err := os.Open("/dev/ptp0")
+	if err == nil {
+		ptp_fd := ptp_dev.Fd()
+		fmt.Printf("Opened /dev/ptp0 with fd %d\n", ptp_fd)
+		TryGetTimeCGO(C.CLOCK_REALTIME, "C.clock_gettime(/dev/ptp0)")
+		TryGetTimeSyscall(ptp_fd, "gettime(/dev/ptp0)")
+	} else {
+		fmt.Printf("Can't open /dev/ptp0: %+v\n", err)
+	}
 
-	start = time.Now()
+	TryGetTimeCGO(C.CLOCK_REALTIME, "C.clock_gettime(CLOCK_REALTIME)")
+	TryGetTimeSyscall(C.CLOCK_REALTIME, "gettime(CLOCK_REALTIME)")
+	TryGetTimeCGO(C.CLOCK_MONOTONIC, "C.clock_gettime(CLOCK_MONOTONIC)")
+	TryGetTimeSyscall(C.CLOCK_MONOTONIC, "gettime(CLOCK_MONOTONIC)")
+}
+
+func TryGetTimeCGO(clockId uintptr, text string) {
+	start := time.Now()
 	var ts C.struct_timespec
 	_ = C.clock_gettime(C.CLOCK_MONOTONIC, &ts)
 	startNSec := uint64(ts.tv_sec)*1e9 + uint64(ts.tv_nsec)
 	for i := 0; i < count; i++ {
 		_ = C.clock_gettime(C.CLOCK_MONOTONIC, &ts)
 	}
-	end = time.Now()
+	end := time.Now()
 	endNSec := uint64(ts.tv_sec)*1e9 + uint64(ts.tv_nsec)
-	fmt.Printf("Time per C.clock_gettime() call %v, nsec diff: %v\n", end.Sub(start)/count, (endNSec-startNSec)/count)
+	fmt.Printf("CGO C.clock_gettime() call %v, nsec diff: %v\n", end.Sub(start)/count, (endNSec-startNSec)/count)
 
-	ptp_dev, err := os.Open("/dev/ptp0")
-	if err == nil {
-		ptp_fd := ptp_dev.Fd()
-		fmt.Printf("Opened /dev/ptp0 with fd %d\n", ptp_fd)
-
-		start = time.Now()
-		startNSec := gettime(ptp_fd)
-		for i := 0; i < count; i++ {
-			_ = gettime(ptp_fd)
-		}
-		end := time.Now()
-		endNSec := gettime(ptp_fd)
-		fmt.Printf("Time per gettime(/dev/ptp0) call %v, nsec diff: %v\n", end.Sub(start)/count, (endNSec-startNSec)/count)
-	} else {
-		fmt.Printf("Can't open /dev/ptp0: %+v\n", err)
-	}
-
-
-	start = time.Now()
-	startNSec = gettime(0)
+}
+func TryGetTimeSyscall(clockId uintptr, text string) {
+	start := time.Now()
+	startNSec := gettime(clockId)
 	for i := 0; i < count; i++ {
-		_ = gettime(0)
+		_ = gettime(clockId)
 	}
-	end = time.Now()
-	endNSec = gettime(0)
-	fmt.Printf("Time per gettime(CLOCK_REALTIME) call %v, nsec diff: %v\n", end.Sub(start)/count, (endNSec-startNSec)/count)
-
-	start = time.Now()
-	startNSec = gettime(1)
-	for i := 0; i < count; i++ {
-		_ = gettime(1)
-	}
-	end = time.Now()
-	endNSec = gettime(1)
-	fmt.Printf("Time per gettime(CLOCK_MONOTONIC) call %v, nsec diff: %v\n", end.Sub(start)/count, (endNSec-startNSec)/count)
-
-	
+	end := time.Now()
+	endNSec := gettime(clockId)
+	fmt.Printf("Syscall %s call %v, nsec diff: %v\n", text,
+		end.Sub(start)/count, (endNSec-startNSec)/count)
 }
 
 func gettime(clock_id uintptr) uint64 {
