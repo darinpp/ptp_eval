@@ -78,10 +78,10 @@ func main() {
 func TryGetTimeCGO(clockId uintptr, text string) {
 	start := time.Now()
 	var ts C.struct_timespec
-	_ = C.clock_gettime(C.CLOCK_MONOTONIC, &ts)
+	_ = C.clock_gettime(C.clockid_t(clockId), &ts)
 	startNSec := uint64(ts.tv_sec)*1e9 + uint64(ts.tv_nsec)
 	for i := 0; i < count; i++ {
-		_ = C.clock_gettime(C.CLOCK_MONOTONIC, &ts)
+		_ = C.clock_gettime(C.clockid_t(clockId), &ts)
 	}
 	end := time.Now()
 	endNSec := uint64(ts.tv_sec)*1e9 + uint64(ts.tv_nsec)
