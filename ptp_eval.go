@@ -73,6 +73,7 @@ func main() {
 	TryGetTimeSyscall(C.CLOCK_REALTIME, "gettime(CLOCK_REALTIME)")
 	TryGetTimeCGO(C.CLOCK_MONOTONIC, "C.clock_gettime(CLOCK_MONOTONIC)")
 	TryGetTimeSyscall(C.CLOCK_MONOTONIC, "gettime(CLOCK_MONOTONIC)")
+	fmt.Printf("now is %s\n", time.Now())
 }
 
 func TryGetTimeCGO(clockId uintptr, text string) {
@@ -85,23 +86,34 @@ func TryGetTimeCGO(clockId uintptr, text string) {
 	}
 	end := time.Now()
 	endNSec := uint64(ts.tv_sec)*1e9 + uint64(ts.tv_nsec)
-	fmt.Printf("CGO %s call %v, nsec diff: %v\n", text, end.Sub(start)/count, (endNSec-startNSec)/count)
+	fmt.Printf("CGO %s call %v, end now: %s, end get time: %s, nsec diff: %v\n",
+		text,
+		end.Sub(start)/count,
+		end,
+		time.Unix(int64(ts.tv_sec), int64(ts.tv_nsec)),
+		(endNSec-startNSec)/count,
+	)
 
 }
 func TryGetTimeSyscall(clockId uintptr, text string) {
 	start := time.Now()
-	startNSec := gettime(clockId)
+	startGetTime := gettime(clockId)
 	for i := 0; i < count; i++ {
 		_ = gettime(clockId)
 	}
 	end := time.Now()
-	endNSec := gettime(clockId)
-	fmt.Printf("Syscall %s call %v, nsec diff: %v\n", text,
-		end.Sub(start)/count, (endNSec-startNSec)/count)
+	endGetTime := gettime(clockId)
+	fmt.Printf("Syscall %s call %v, end now: %s, end get time: %s, nsec diff: %v\n",
+		text,
+		end.Sub(start)/count,
+		end,
+		time.Unix(endGetTime.Sec, endGetTime.Nsec),
+		(endGetTime.Nano()-startGetTime.Nano())/count,
+	)
 }
 
-func gettime(clock_id uintptr) uint64 {
+func gettime(clock_id uintptr) syscall.Timespec {
 	var ts syscall.Timespec
 	syscall.Syscall(228, 1, uintptr(unsafe.Pointer(&ts)), 0)
-	return uint64(ts.Nano())
+	return ts
 }
