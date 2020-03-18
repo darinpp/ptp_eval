@@ -21,8 +21,6 @@ import (
 	"fmt"
 	"os"
 	"time"
-	"syscall"
-	"unsafe"
 )
 const count = 5_000_000
 
@@ -33,6 +31,10 @@ func walltime() (sec int64, nsec int32)
 func nanotime() uint64
 
 func main() {
+	ptpDevice := "/dev/ptp0"
+	if len(os.Args) > 1 {
+		ptpDevice = os.Args[1]
+	}
 	start := time.Now()
 	for i := 0; i < count; i++ {
 		_ = time.Now()
@@ -58,28 +60,28 @@ func main() {
 	end = time.Now()
 	fmt.Printf("Time per nanotime() call %v, nsec diff: %v\n", end.Sub(start)/count, (endNSec-startNSec)/count)
 
-	ptp_dev, err := os.Open("/dev/ptp0")
+	ptp_dev, err := os.Open(ptpDevice)
 	if err == nil {
 		ptp_fd := ptp_dev.Fd()
 		ptp_mod_fd := (^ptp_fd << 3) | 3
-		fmt.Printf("Opened /dev/ptp0 with fd %x, mod_fd %x \n", ptp_fd, ptp_mod_fd)
-		TryGetTimeCGO(ptp_mod_fd, "C.clock_gettime(/dev/ptp0)")
-		TryGetTimeSyscall(ptp_mod_fd, "gettime(/dev/ptp0)")
+		fmt.Printf("Opened %s with fd %x, mod_fd %x \n", ptpDevice, ptp_fd, ptp_mod_fd)
+		TryGetTimeCGO(ptp_mod_fd, fmt.Sprintf("C.clock_gettime(%s)", ptpDevice))
 	} else {
-		fmt.Printf("Can't open /dev/ptp0: %+v\n", err)
+		fmt.Printf("Can't open %s: %+v\n", ptpDevice, err)
 	}
 
 	TryGetTimeCGO(C.CLOCK_REALTIME, "C.clock_gettime(CLOCK_REALTIME)")
-	TryGetTimeSyscall(C.CLOCK_REALTIME, "gettime(CLOCK_REALTIME)")
 	TryGetTimeCGO(C.CLOCK_MONOTONIC, "C.clock_gettime(CLOCK_MONOTONIC)")
-	TryGetTimeSyscall(C.CLOCK_MONOTONIC, "gettime(CLOCK_MONOTONIC)")
 	fmt.Printf("now is %s\n", time.Now())
 }
 
 func TryGetTimeCGO(clockId uintptr, text string) {
 	start := time.Now()
 	var ts C.struct_timespec
-	_ = C.clock_gettime(C.clockid_t(clockId), &ts)
+	_, err := C.clock_gettime(C.clockid_t(clockId), &ts)
+	if err != nil {
+		panic(err)
+	}
 	startNSec := uint64(ts.tv_sec)*1e9 + uint64(ts.tv_nsec)
 	for i := 0; i < count; i++ {
 		_ = C.clock_gettime(C.clockid_t(clockId), &ts)
@@ -95,25 +97,4 @@ func TryGetTimeCGO(clockId uintptr, text string) {
 	)
 
 }
-func TryGetTimeSyscall(clockId uintptr, text string) {
-	start := time.Now()
-	startGetTime := gettime(clockId)
-	for i := 0; i < count; i++ {
-		_ = gettime(clockId)
-	}
-	end := time.Now()
-	endGetTime := gettime(clockId)
-	fmt.Printf("Syscall %s call %v, end now: %s, end get time: %s, nsec diff: %v\n",
-		text,
-		end.Sub(start)/count,
-		end,
-		time.Unix(endGetTime.Sec, endGetTime.Nsec),
-		(endGetTime.Nano()-startGetTime.Nano())/count,
-	)
-}
 
-func gettime(clock_id uintptr) syscall.Timespec {
-	var ts syscall.Timespec
-	syscall.Syscall(228, 1, uintptr(unsafe.Pointer(&ts)), 0)
-	return ts
-}
