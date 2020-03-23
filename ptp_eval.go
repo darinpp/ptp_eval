@@ -23,7 +23,7 @@ import (
 	"sync"
 	"time"
 )
-const count = 5_000_000
+const count = 50_000_000
 
 //go:linkname walltime runtime.walltime
 func walltime() (sec int64, nsec int32)
