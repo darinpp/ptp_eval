@@ -60,7 +60,7 @@ func main() {
 	}
 	end = time.Now()
 	fmt.Printf("Time per nanotime() call %v, nsec diff: %v\n", end.Sub(start)/count, (endNSec-startNSec)/count)
-	for tc := 0; tc < 5; tc++ {
+	for tc := 0; tc < 7; tc++ {
 		fmt.Printf("*** Thread count %d\n", 1<<tc)
 		ptp_dev, err := os.Open(ptpDevice)
 		if err == nil {
